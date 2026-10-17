@@ -1,8 +1,9 @@
+
 services:
   - type: web
     name: zg-live-fantasy-queue
     runtime: node
-    plan: starter
+    plan: free
     region: ohio
     buildCommand: npm install
     startCommand: npm start
@@ -14,9 +15,3 @@ services:
         sync: false
       - key: OVERLAY_KEY
         sync: false
-      - key: DATA_DIR
-        value: /var/data
-    disk:
-      name: zg-live-data
-      mountPath: /var/data
-      sizeGB: 1
