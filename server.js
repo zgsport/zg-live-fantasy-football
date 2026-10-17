@@ -19,6 +19,17 @@ db.exec(`CREATE TABLE IF NOT EXISTS questions (
  username TEXT NOT NULL, league TEXT DEFAULT '', details TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
  created_at TEXT NOT NULL DEFAULT (datetime('now')), answer TEXT DEFAULT ''
 )`);
+
+
+try {
+  db.exec('ALTER TABLE questions ADD COLUMN decision_at TEXT');
+} catch (error) {
+  if (!String(error.message).includes('duplicate column name')) {
+    throw error;
+  }
+}
+
+
 try {
   db.exec("ALTER TABLE questions ADD COLUMN decision_at TEXT");
 } catch (error) {
@@ -59,10 +70,18 @@ app.post('/api/login',(req,res)=>{
  res.json({ok:true,token});
 });
 app.post('/api/logout',admin,(req,res)=>{sessions.delete(req.get('x-admin-token'));res.json({ok:true});});
-app.get('/api/admin/questions',admin,(req,res)=>{
- const status=String(req.query.status||'all');
- const rows=status==='all'?db.prepare('SELECT * FROM questions ORDER BY id DESC LIMIT 250').all():db.prepare('SELECT * FROM questions WHERE status=? ORDER BY id DESC LIMIT 250').all(status);
- res.json(rows);
+
+
+app.get('/api/admin/questions', admin, (req, res) => {
+  const status = String(req.query.status || 'all');
+
+  const rows = status === 'all'
+    ? db.prepare('SELECT * FROM questions ORDER BY id DESC LIMIT 250').all()
+    : db.prepare('SELECT * FROM questions WHERE status = ? ORDER BY id DESC LIMIT 250').all(status);
+
+  res.json(rows);
+});
+
 app.patch('/api/admin/questions/:id', admin, (req, res) => {
   const id = Number(req.params.id);
   const status = String(req.body.status || '');
@@ -73,6 +92,56 @@ app.patch('/api/admin/questions/:id', admin, (req, res) => {
   ) {
     return res.status(400).json({ error: 'Invalid update.' });
   }
+
+  const answer = String(req.body.answer || '').trim().slice(0, 400);
+
+  // Record when an accept/decline decision is made.
+  const decisionAt = ['accepted', 'rejected'].includes(status)
+    ? new Date().toISOString()
+    : null;
+
+  const result = db.prepare(`
+    UPDATE questions
+    SET status = ?, answer = ?, decision_at = ?
+    WHERE id = ?
+  `).run(status, answer, decisionAt, id);
+
+  if (!result.changes) {
+    return res.status(404).json({ error: 'Question not found.' });
+  }
+
+  res.json({ ok: true });
+});
+
+app.get('/api/overlay/current', overlayAuth, (req, res) => {
+  const latestDecision = db.prepare(`
+    SELECT id, status, decision_at
+    FROM questions
+    WHERE status IN ('accepted', 'rejected')
+      AND decision_at IS NOT NULL
+    ORDER BY decision_at DESC
+    LIMIT 1
+  `).get();
+
+  // Show the newest question while it is pending or accepted.
+  const activeQuestion = db.prepare(`
+    SELECT id, type, username, league, details, status, answer, created_at
+    FROM questions
+    WHERE status IN ('pending', 'accepted', 'answered')
+    ORDER BY id DESC
+    LIMIT 1
+  `).get();
+
+  res.json({
+    decision: latestDecision || null,
+    question: activeQuestion || null
+  });
+});
+
+
+
+
+
 
   const answer = String(req.body.answer || '').trim().slice(0, 400);
   const decisionAt = ['accepted', 'rejected'].includes(status)
