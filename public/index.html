@@ -1,29 +1,210 @@
+
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ask ZG Live</title><link rel="stylesheet" href="/style.css"></head>
-<body><main class="public-wrap">
-  <div class="brand"><span class="brand-ball">ZG</span><span>FANTASY LIVE</span><span class="live-pill">● LIVE Q&amp;A</span></div>
-  <section class="hero"><p class="eyebrow">YOUR LINEUP. YOUR CALL.</p><h1>Ask <em>ZG.</em></h1><p class="muted">Submit a start/sit or trade question for the fantasy football livestream.</p></section>
-  <section class="panel">
-    <div class="field"><label>QUESTION TYPE</label><div class="type-switch"><button type="button" class="type active" data-type="start-sit">Start / Sit</button><button type="button" class="type" data-type="trade">Trade Analyzer</button></div></div>
-    <form id="questionForm">
-      <div class="field"><label for="displayName">TIKTOK USERNAME <span class="optional">OPTIONAL</span></label><input id="displayName" maxlength="32" placeholder="@yourusername"></div>
-      <div class="field" id="playersField"><label for="players">PLAYERS TO COMPARE</label><input id="players" maxlength="180" placeholder="e.g. Player A or Player B" required></div>
-      <div class="field"><label for="question">YOUR QUESTION</label><textarea id="question" maxlength="500" rows="4" placeholder="Add league format, scoring, roster needs, or trade details..." required></textarea><div class="counter"><span id="hint">Include PPR/half-PPR and any relevant context.</span><span id="count">0/500</span></div></div>
-      <button class="primary full" id="submitBtn">Send to ZG <span>↗</span></button><p id="message" class="message" role="status"></p>
-    </form>
-  </section>
-  <p class="footnote">Questions are reviewed before appearing on stream. Please don't include private or sensitive information.</p>
-</main><script src="/socket.io/socket.io.js"></script><script>
-let type="start-sit"; const buttons=[...document.querySelectorAll(".type")];
-buttons.forEach(b=>b.addEventListener("click",()=>{type=b.dataset.type;buttons.forEach(x=>x.classList.toggle("active",x===b));document.getElementById("playersField").hidden=type==="trade";document.getElementById("players").required=type==="start-sit";document.getElementById("hint").textContent=type==="trade"?"List both sides of the trade and your roster needs.":"Include PPR/half-PPR and any relevant context.";document.getElementById("players").placeholder=type==="trade"?"e.g. Give: Player A / Get: Player B":"e.g. Player A or Player B";}));
-const q=document.getElementById("question");q.addEventListener("input",()=>document.getElementById("count").textContent=q.value.length+"/500");
-document.getElementById("questionForm").addEventListener("submit",async e=>{e.preventDefault();const btn=document.getElementById("submitBtn"),msg=document.getElementById("message");btn.disabled=true;msg.className="message";msg.textContent="Sending…";
-try{const r=await fetch("/api/questions",{method:"POST",headers:{"Content-Type":"application/json"}});body:JSON.stringify({
-  type,
-  username:document.getElementById("displayName").value.trim()||"Anonymous",
-  league:"",
-  details:type==="trade"
-    ? q.value.trim()
-    : "Players: "+document.getElementById("players").value.trim()+" — "+q.value.trim()
-})const d=await r.json();if(!r.ok)throw Error(d.error||"Could not submit.");msg.className="message success";msg.textContent="You're in the queue! Question #"+d.id+" has been sent to ZG.";q.value="";document.getElementById("players").value="";document.getElementById("count").textContent="0/500";}catch(err){msg.className="message error";msg.textContent=err.message;}finally{btn.disabled=false;}});
-</script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ask ZG Live</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="public-wrap">
+    <div class="brand">
+      <span class="brand-ball">ZG</span>
+      <span>FANTASY LIVE</span>
+      <span class="live-pill">● LIVE Q&amp;A</span>
+    </div>
+
+    <section class="hero">
+      <p class="eyebrow">YOUR LINEUP. YOUR CALL.</p>
+      <h1>Ask <em>ZG.</em></h1>
+      <p class="muted">
+        Submit a start/sit or trade question for the fantasy football livestream.
+      </p>
+    </section>
+
+    <section class="panel">
+      <div class="field">
+        <label>QUESTION TYPE</label>
+        <div class="type-switch">
+          <button type="button" class="type active" data-type="start-sit">
+            Start / Sit
+          </button>
+          <button type="button" class="type" data-type="trade">
+            Trade Analyzer
+          </button>
+        </div>
+      </div>
+
+      <form id="questionForm">
+        <div class="field">
+          <label for="displayName">
+            TIKTOK USERNAME <span class="optional">OPTIONAL</span>
+          </label>
+          <input
+            id="displayName"
+            maxlength="32"
+            placeholder="@yourusername"
+          >
+        </div>
+
+        <div class="field" id="playersField">
+          <label for="players">PLAYERS TO COMPARE</label>
+          <input
+            id="players"
+            maxlength="180"
+            placeholder="e.g. Player A or Player B"
+            required
+          >
+        </div>
+
+        <div class="field">
+          <label for="question">YOUR QUESTION</label>
+          <textarea
+            id="question"
+            maxlength="500"
+            rows="4"
+            placeholder="Add league format, scoring, roster needs, or trade details..."
+            required
+          ></textarea>
+
+          <div class="counter">
+            <span id="hint">
+              Include PPR/half-PPR and any relevant context.
+            </span>
+            <span id="count">0/500</span>
+          </div>
+        </div>
+
+        <button class="primary full" id="submitBtn" type="submit">
+          Send to ZG <span>↗</span>
+        </button>
+
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <p class="footnote">
+      Questions are reviewed before appearing on stream.
+      Please don't include private or sensitive information.
+    </p>
+  </main>
+
+  <script>
+    let type = "start-sit";
+
+    const buttons = [...document.querySelectorAll(".type")];
+    const playersField = document.getElementById("playersField");
+    const playersInput = document.getElementById("players");
+    const displayName = document.getElementById("displayName");
+    const question = document.getElementById("question");
+    const hint = document.getElementById("hint");
+    const count = document.getElementById("count");
+    const form = document.getElementById("questionForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const message = document.getElementById("message");
+
+    // Switch between Start/Sit and Trade Analyzer.
+    buttons.forEach(button => {
+      button.addEventListener("click", () => {
+        type = button.dataset.type;
+
+        buttons.forEach(item => {
+          item.classList.toggle("active", item === button);
+        });
+
+        const isTrade = type === "trade";
+
+        playersField.hidden = isTrade;
+        playersInput.required = !isTrade;
+
+        playersInput.placeholder = isTrade
+          ? "e.g. Give: Player A / Get: Player B"
+          : "e.g. Player A or Player B";
+
+        hint.textContent = isTrade
+          ? "List both sides of the trade and your roster needs."
+          : "Include PPR/half-PPR and any relevant context.";
+
+        question.placeholder = isTrade
+          ? "Describe the trade, your roster, and your league format..."
+          : "Add league format, scoring, roster needs, or other details...";
+
+        message.textContent = "";
+        message.className = "message";
+      });
+    });
+
+    // Update the question character counter.
+    question.addEventListener("input", () => {
+      count.textContent = question.value.length + "/500";
+    });
+
+    // Submit the question to the server.
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const username = displayName.value.trim() || "Anonymous";
+      const players = playersInput.value.trim();
+      const questionText = question.value.trim();
+
+      if (!questionText || (type === "start-sit" && !players)) {
+        message.className = "message error";
+        message.textContent =
+          "Please enter the required players and question.";
+        return;
+      }
+
+      const details = type === "trade"
+        ? questionText
+        : `Players: ${players} — ${questionText}`;
+
+      submitBtn.disabled = true;
+      message.className = "message";
+      message.textContent = "Sending…";
+
+      try {
+        const response = await fetch("/api/questions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            type: type,
+            username: username,
+            league: "",
+            details: details
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.error || "Could not submit your question."
+          );
+        }
+
+        message.className = "message success";
+        message.textContent =
+          "You're in the queue! Question #" +
+          data.id +
+          " has been sent to ZG.";
+
+        displayName.value = "";
+        playersInput.value = "";
+        question.value = "";
+        count.textContent = "0/500";
+
+      } catch (error) {
+        message.className = "message error";
+        message.textContent =
+          error.message || "Something went wrong. Please try again.";
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
+
