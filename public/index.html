@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ask ZG Live</title><link rel="stylesheet" href="/style.css"></head>
+<body><main class="public-wrap">
+  <div class="brand"><span class="brand-ball">ZG</span><span>FANTASY LIVE</span><span class="live-pill">● LIVE Q&amp;A</span></div>
+  <section class="hero"><p class="eyebrow">YOUR LINEUP. YOUR CALL.</p><h1>Ask <em>ZG.</em></h1><p class="muted">Submit a start/sit or trade question for the fantasy football livestream.</p></section>
+  <section class="panel">
+    <div class="field"><label>QUESTION TYPE</label><div class="type-switch"><button type="button" class="type active" data-type="start-sit">Start / Sit</button><button type="button" class="type" data-type="trade">Trade Analyzer</button></div></div>
+    <form id="questionForm">
+      <div class="field"><label for="displayName">TIKTOK USERNAME <span class="optional">OPTIONAL</span></label><input id="displayName" maxlength="32" placeholder="@yourusername"></div>
+      <div class="field" id="playersField"><label for="players">PLAYERS TO COMPARE</label><input id="players" maxlength="180" placeholder="e.g. Player A or Player B" required></div>
+      <div class="field"><label for="question">YOUR QUESTION</label><textarea id="question" maxlength="500" rows="4" placeholder="Add league format, scoring, roster needs, or trade details..." required></textarea><div class="counter"><span id="hint">Include PPR/half-PPR and any relevant context.</span><span id="count">0/500</span></div></div>
+      <button class="primary full" id="submitBtn">Send to ZG <span>↗</span></button><p id="message" class="message" role="status"></p>
+    </form>
+  </section>
+  <p class="footnote">Questions are reviewed before appearing on stream. Please don't include private or sensitive information.</p>
+</main><script src="/socket.io/socket.io.js"></script><script>
+let type="start-sit"; const buttons=[...document.querySelectorAll(".type")];
+buttons.forEach(b=>b.addEventListener("click",()=>{type=b.dataset.type;buttons.forEach(x=>x.classList.toggle("active",x===b));document.getElementById("playersField").hidden=type==="trade";document.getElementById("players").required=type==="start-sit";document.getElementById("hint").textContent=type==="trade"?"List both sides of the trade and your roster needs.":"Include PPR/half-PPR and any relevant context.";document.getElementById("players").placeholder=type==="trade"?"e.g. Give: Player A / Get: Player B":"e.g. Player A or Player B";}));
+const q=document.getElementById("question");q.addEventListener("input",()=>document.getElementById("count").textContent=q.value.length+"/500");
+document.getElementById("questionForm").addEventListener("submit",async e=>{e.preventDefault();const btn=document.getElementById("submitBtn"),msg=document.getElementById("message");btn.disabled=true;msg.className="message";msg.textContent="Sending…";
+try{const r=await fetch("/api/questions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type,displayName:document.getElementById("displayName").value,players:document.getElementById("players").value,question:q.value})});const d=await r.json();if(!r.ok)throw Error(d.error||"Could not submit.");msg.className="message success";msg.textContent="You're in the queue! Question #"+d.id+" has been sent to ZG.";q.value="";document.getElementById("players").value="";document.getElementById("count").textContent="0/500";}catch(err){msg.className="message error";msg.textContent=err.message;}finally{btn.disabled=false;}});
+</script></body></html>
