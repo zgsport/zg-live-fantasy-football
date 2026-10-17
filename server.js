@@ -24,6 +24,13 @@ try {
 } catch (error) {
   // Column already exists on an existing database.
 }
+
+try {
+  db.exec("ALTER TABLE questions ADD COLUMN decision_at TEXT");
+} catch (error) {
+  // The column already exists.
+}
+
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const OVERLAY_KEY = process.env.OVERLAY_KEY || '';
 const sessions = new Map();
