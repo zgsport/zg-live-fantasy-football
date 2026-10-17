@@ -2,168 +2,423 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZG Live Fantasy Football Overlay</title>
-  <style>
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      width: 100%;
-      min-height: 100%;
-      background: transparent;
-      color: #fff;
-      font-family: Arial, Helvetica, sans-serif;
-    }
-    body { padding: 24px; }
-    #question-card {
-      display: none;
-      width: 100%;
-      max-width: 900px;
-      padding: 26px 30px;
-      border: 2px solid #35e58b;
-      border-radius: 22px;
-      background: linear-gradient(135deg, rgba(10,18,32,.97), rgba(18,39,56,.96));
-      box-shadow: 0 8px 32px rgba(0,0,0,.35);
-    }
-    .brand {
-      color: #35e58b;
-      font-size: 20px;
-      font-weight: 900;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-    }
-    .type {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 7px 12px;
-      border-radius: 8px;
-      background: #35e58b;
-      color: #07140d;
-      font-size: 15px;
-      font-weight: 900;
-      text-transform: uppercase;
-    }
-    .username {
-      margin-top: 16px;
-      font-size: 25px;
-      font-weight: 800;
-      overflow-wrap: anywhere;
-    }
-    .league {
-      margin-top: 5px;
-      color: #c7d4e3;
-      font-size: 17px;
-      overflow-wrap: anywhere;
-    }
-    .details {
-      margin-top: 18px;
-      font-size: 30px;
-      line-height: 1.3;
-      font-weight: 700;
-      overflow-wrap: anywhere;
-      white-space: pre-wrap;
-    }
-    .answer {
-      display: none;
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid rgba(255,255,255,.25);
-      color: #35e58b;
-      font-size: 25px;
-      font-weight: 800;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
-    #waiting {
-      display: none;
-      width: fit-content;
-      padding: 14px 20px;
-      border: 2px solid #35e58b;
-      border-radius: 14px;
-      background: rgba(10,18,32,.94);
-      color: #35e58b;
-      font-size: 21px;
-      font-weight: 900;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZG Live | Fantasy Football</title>
+<style>
+:root {
+  --green: #35ff87;
+  --blue: #00c8ff;
+  --purple: #a855f7;
+  --orange: #ff9d2e;
+  --red: #ff405d;
+  --panel: rgba(8, 13, 31, .96);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: transparent;
+  color: white;
+  font-family: Arial, Helvetica, sans-serif;
+}
+body { padding: 22px; }
+#app {
+  position: relative;
+  width: 100%;
+  max-width: 940px;
+}
+.card {
+  overflow: hidden;
+  position: relative;
+  border: 2px solid var(--green);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at top right, rgba(0,200,255,.17), transparent 45%),
+    linear-gradient(135deg, rgba(8,13,31,.98), rgba(19,26,52,.97));
+  box-shadow: 0 0 24px rgba(53,255,135,.17), 0 12px 35px #0008;
+  animation: enter .35s ease-out;
+}
+.topline {
+  height: 7px;
+  background: linear-gradient(90deg, var(--green), var(--blue), var(--purple), var(--orange));
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px 8px;
+}
+.brand {
+  color: var(--green);
+  font-size: clamp(17px, 2.4vw, 24px);
+  font-weight: 1000;
+  font-style: italic;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px #35ff8750;
+}
+.live {
+  border: 1px solid var(--red);
+  background: #ff405d20;
+  color: #ff7184;
+  border-radius: 7px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.content { padding: 12px 22px 24px; }
+.pills { display: flex; flex-wrap: wrap; gap: 9px; }
+.pill {
+  border-radius: 7px;
+  padding: 7px 11px;
+  color: #061321;
+  font-size: 13px;
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+.kind { background: var(--blue); }
+.queue { background: var(--orange); }
+.viewer {
+  margin-top: 15px;
+  font-size: clamp(19px, 2.5vw, 26px);
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+.meta {
+  margin-top: 5px;
+  color: #b9c8df;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.details {
+  margin-top: 18px;
+  font-size: clamp(24px, 3.5vw, 36px);
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+.player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 170px;
+  max-width: 100%;
+  padding: 9px 12px 9px 9px;
+  border: 1px solid #00c8ff80;
+  border-radius: 13px;
+  background: linear-gradient(110deg, #00c8ff18, #a855f718);
+}
+.player img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  border-radius: 9px;
+  background: #ffffff0b;
+}
+.player-name { font-weight: 900; font-size: 15px; }
+.player-label {
+  margin-top: 4px;
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.answer {
+  display: none;
+  margin-top: 20px;
+  border-top: 1px solid #ffffff30;
+  padding-top: 15px;
+  color: var(--green);
+  font-size: 22px;
+  font-weight: 900;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#waiting {
+  display: none;
+  width: fit-content;
+  max-width: 100%;
+  border: 2px solid var(--blue);
+  border-radius: 15px;
+  padding: 15px 20px;
+  background: var(--panel);
+  color: var(--green);
+  font-weight: 1000;
+  font-size: 20px;
+  animation: pulse 2s infinite;
+}
+#decision {
+  display: none;
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 22px;
+  background: #030713eF;
+  text-align: center;
+}
+#decision.show { display: flex; }
+.decision-content { animation: decisionIn .45s cubic-bezier(.2,1.6,.4,1); }
+.decision-mark {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  margin: 0 auto 15px;
+  border: 5px solid currentColor;
+  border-radius: 50%;
+  font-size: 72px;
+  font-weight: 1000;
+  box-shadow: 0 0 35px currentColor;
+}
+#decision.accepted { color: var(--green); }
+#decision.rejected { color: var(--red); }
+.decision-title {
+  font-size: clamp(34px, 7vw, 58px);
+  font-weight: 1000;
+  font-style: italic;
+  text-shadow: 0 0 25px currentColor;
+}
+.decision-sub {
+  margin-top: 9px;
+  color: white;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+@keyframes enter {
+  from { opacity: 0; transform: translateY(14px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes decisionIn {
+  from { opacity: 0; transform: scale(.45) rotate(-8deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+@keyframes pulse {
+  50% { box-shadow: 0 0 22px #00c8ff55; }
+}
+@media (max-width: 520px) {
+  body { padding: 10px; }
+  .header, .content { padding-left: 14px; padding-right: 14px; }
+  .player { min-width: 0; }
+}
+</style>
 </head>
 <body>
-  <div id="waiting">ZG LIVE · SEND YOUR FANTASY QUESTION</div>
+<div id="app">
+  <div id="waiting">🏈 ZG LIVE · SEND YOUR FANTASY QUESTION</div>
 
-  <section id="question-card">
-    <div class="brand">ZG Live Fantasy Football</div>
-    <div class="type" id="type"></div>
-    <div class="username" id="username"></div>
-    <div class="league" id="league"></div>
-    <div class="details" id="details"></div>
-    <div class="answer" id="answer"></div>
+  <section class="card" id="card" style="display:none">
+    <div class="topline"></div>
+    <header class="header">
+      <div class="brand">ZG Live · Fantasy Football</div>
+      <div class="live">● LIVE</div>
+    </header>
+    <div class="content">
+      <div class="pills">
+        <span class="pill kind" id="type"></span>
+        <span class="pill queue">FANTASY Q&amp;A</span>
+      </div>
+      <div class="viewer" id="username"></div>
+      <div class="meta" id="league"></div>
+      <div class="details" id="details"></div>
+      <div class="players" id="players"></div>
+      <div class="answer" id="answer"></div>
+    </div>
+
+    <div id="decision">
+      <div class="decision-content">
+        <div class="decision-mark" id="decisionMark">✓</div>
+        <div class="decision-title" id="decisionTitle">ACCEPTED</div>
+        <div class="decision-sub">ZG LIVE · FANTASY FOOTBALL</div>
+      </div>
+    </div>
   </section>
+</div>
 
-  <script>
-    const card = document.getElementById('question-card');
-    const waiting = document.getElementById('waiting');
-    const overlayKey = new URLSearchParams(window.location.search).get('key');
+<script>
+const card = document.getElementById('card');
+const waiting = document.getElementById('waiting');
+const decision = document.getElementById('decision');
+const overlayKey = new URLSearchParams(location.search).get('key');
 
-    let lastQuestionId = null;
-    let lastStatus = null;
+let lastDecisionId = null;
+let decisionTimer = null;
+let currentQuestionId = null;
 
-    function showWaiting() {
-      card.style.display = 'none';
-      waiting.style.display = 'block';
+const knownPlayers = [
+  "Justin Jefferson", "Ja'Marr Chase", "Jamar Chase",
+  "CeeDee Lamb", "Ceedee Lamb", "Amon-Ra St. Brown",
+  "Puka Nacua", "Cooper Kupp", "Drake London",
+  "Nico Collins", "Garrett Wilson", "Chris Olave",
+  "Jaylen Waddle", "Tyreek Hill", "Davante Adams",
+  "DK Metcalf", "DeVonta Smith", "Stefon Diggs",
+  "George Pickens", "Tee Higgins", "Malik Nabers",
+  "Brian Thomas Jr", "Rome Odunze", "Marvin Harrison Jr",
+  "Josh Allen", "Lamar Jackson", "Drake Maye",
+  "Joe Burrow", "Jayden Daniels", "Caleb Williams",
+  "Jalen Hurts", "Dak Prescott", "Patrick Mahomes",
+  "Justin Herbert", "Brock Purdy", "Jordan Love",
+  "Christian McCaffrey", "Bijan Robinson", "Jahmyr Gibbs",
+  "Jonathan Taylor", "James Cook", "Derrick Henry",
+  "De'Von Achane", "Devon Achane", "Breece Hall",
+  "Saquon Barkley", "Kyren Williams", "Josh Jacobs",
+  "Kenneth Walker", "Travis Etienne", "Alvin Kamara",
+  "Ashton Jeanty", "D'Andre Swift", "Dandre Swift",
+  "Trey McBride", "Brock Bowers", "Sam LaPorta",
+  "Travis Kelce", "George Kittle", "T.J. Hockenson",
+  "Colston Loveland", "Harold Fannin Jr"
+];
+
+function extractPlayers(text) {
+  const lower = text.toLowerCase();
+  const found = [];
+  for (const name of knownPlayers) {
+    if (lower.includes(name.toLowerCase()) &&
+        !found.some(p => p.toLowerCase() === name.toLowerCase())) {
+      found.push(name);
+    }
+  }
+  return found.slice(0, 4);
+}
+
+function renderPlayers(text) {
+  const container = document.getElementById('players');
+  container.replaceChildren();
+
+  extractPlayers(text).forEach(name => {
+    const tile = document.createElement('div');
+    tile.className = 'player';
+
+    const img = document.createElement('img');
+    img.alt = name;
+    img.loading = 'eager';
+
+    // ESPN's athlete ID is required for a reliable headshot.
+    // The name fallback keeps the overlay usable when an ID isn't known.
+    const imageUrl = PLAYER_IMAGES[name];
+    if (imageUrl) {
+      img.src = imageUrl;
+      img.onerror = () => { img.style.display = 'none'; };
+    } else {
+      img.style.display = 'none';
     }
 
-    async function refreshOverlay() {
-      try {
-        const endpoint = '/api/overlay/current' +
-          (overlayKey ? '?key=' + encodeURIComponent(overlayKey) : '');
+    const info = document.createElement('div');
+    const playerName = document.createElement('div');
+    playerName.className = 'player-name';
+    playerName.textContent = name;
+    const label = document.createElement('div');
+    label.className = 'player-label';
+    label.textContent = 'NFL PLAYER';
+    info.append(playerName, label);
+    tile.append(img, info);
+    container.append(tile);
+  });
+}
 
-        const response = await fetch(endpoint, { cache: 'no-store' });
-        if (!response.ok) throw new Error('Overlay request failed');
+// Add ESPN headshot URLs here after confirming the current player IDs.
+// Empty by default: avoids showing an incorrect player's photo.
+const PLAYER_IMAGES = {};
 
-        const question = await response.json();
+function showWaiting() {
+  card.style.display = 'none';
+  waiting.style.display = 'block';
+}
 
-        if (!question || question.status !== 'accepted') {
-          showWaiting();
-          lastQuestionId = question ? question.id : null;
-          lastStatus = question ? question.status : null;
-          return;
-        }
+function showDecision(status, id) {
+  if (lastDecisionId === id) return;
+  lastDecisionId = id;
 
-        document.getElementById('type').textContent =
-          question.type === 'trade' ? 'Trade Question' : 'Start / Sit';
+  clearTimeout(decisionTimer);
+  card.style.display = 'block';
+  waiting.style.display = 'none';
+  decision.className = 'show ' + (status === 'accepted' ? 'accepted' : 'rejected');
 
-        document.getElementById('username').textContent =
-          '@' + (question.username || 'TikTok viewer');
+  document.getElementById('decisionMark').textContent =
+    status === 'accepted' ? '✓' : '✕';
+  document.getElementById('decisionTitle').textContent =
+    status === 'accepted' ? 'ACCEPTED!' : 'DECLINED';
 
-        const league = document.getElementById('league');
-        league.textContent = question.league ? 'League: ' + question.league : '';
-        league.style.display = question.league ? 'block' : 'none';
-
-        document.getElementById('details').textContent = question.details || '';
-
-        const answer = document.getElementById('answer');
-        if (question.answer) {
-          answer.textContent = 'ANSWER: ' + question.answer;
-          answer.style.display = 'block';
-        } else {
-          answer.textContent = '';
-          answer.style.display = 'none';
-        }
-
-        card.style.display = 'block';
-        waiting.style.display = 'none';
-
-        lastQuestionId = question.id;
-        lastStatus = question.status;
-      } catch (error) {
-        // Keep the overlay transparent and retry automatically.
-        console.error('Overlay refresh failed:', error);
-      }
-    }
-
+  decisionTimer = setTimeout(() => {
+    decision.className = '';
     refreshOverlay();
-    setInterval(refreshOverlay, 2000);
-  </script>
+  }, 2400);
+}
+
+async function refreshOverlay() {
+  try {
+    const keyParam = overlayKey
+      ? '?key=' + encodeURIComponent(overlayKey)
+      : '';
+
+    const response = await fetch('/api/overlay/current' + keyParam, {
+      cache: 'no-store'
+    });
+    if (!response.ok) throw new Error('Overlay request failed');
+
+    const data = await response.json();
+    if (!data) {
+      showWaiting();
+      return;
+    }
+
+    // Decision events are returned by the updated backend.
+    if (data.decision && data.decision.id != null) {
+      showDecision(data.decision.status, data.decision.id);
+      return;
+    }
+
+    const question = data.question || data;
+    if (!question || !['accepted', 'answered'].includes(question.status)) {
+      showWaiting();
+      return;
+    }
+
+    if (decision.classList.contains('show')) return;
+    currentQuestionId = question.id;
+
+    document.getElementById('type').textContent =
+      question.type === 'trade' ? 'TRADE QUESTION' : 'START / SIT';
+    document.getElementById('username').textContent =
+      '@' + (question.username || 'TikTok viewer');
+
+    const league = document.getElementById('league');
+    league.textContent = question.league ? 'LEAGUE: ' + question.league : '';
+    league.style.display = question.league ? 'block' : 'none';
+
+    document.getElementById('details').textContent = question.details || '';
+    renderPlayers(question.details || '');
+
+    const answer = document.getElementById('answer');
+    if (question.answer) {
+      answer.textContent = 'ANSWER: ' + question.answer;
+      answer.style.display = 'block';
+    } else {
+      answer.textContent = '';
+      answer.style.display = 'none';
+    }
+
+    card.style.display = 'block';
+    waiting.style.display = 'none';
+  } catch (error) {
+    console.error('Overlay refresh failed:', error);
+  }
+}
+
+refreshOverlay();
+setInterval(refreshOverlay, 2000);
+</script>
 </body>
 </html>
