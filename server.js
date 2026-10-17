@@ -30,7 +30,7 @@ function admin(req,res,next){
 }
 function overlayAuth(req,res,next){ if(OVERLAY_KEY && req.query.key!==OVERLAY_KEY) return res.status(403).json({error:'Invalid overlay key'}); next(); }
 app.use(express.static(path.join(__dirname,'public')));
-app.get('/',(_,res)=>res.sendFile(path.join(__dirname,'public','submit.html')));
+app.get('/',(_,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 app.get('/admin',(_,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
 app.get('/overlay',(_,res)=>res.sendFile(path.join(__dirname,'public','overlay.html')));
 app.post('/api/questions', rateLimit({windowMs:60_000,limit:8,standardHeaders:true,legacyHeaders:false}), (req,res)=>{
