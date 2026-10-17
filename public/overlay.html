@@ -1,6 +1,169 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZG — Stream Overlay</title><link rel="stylesheet" href="/style.css"></head><body class="overlay-body"><main class="overlay-shell"><div class="overlay-brand"><span class="brand-ball">ZG</span><span>FANTASY FOOTBALL</span><span class="live-pill">● LIVE Q&amp;A</span></div><section class="overlay-hero"><p class="eyebrow">THE CHAT DECIDES</p><h1>START <em>OR</em> SIT?</h1><p>Fantasy questions, answered live.</p></section><div id="overlayQuestions" class="overlay-questions"><div class="overlay-empty"><div class="pulse">●</div><h2>YOUR QUESTION COULD BE NEXT</h2><p>Submit at <strong>ask.zg.live</strong></p></div></div><footer class="overlay-footer"><span>ASK.ZG.LIVE</span><span>SUBMIT • WATCH • WIN YOUR WEEK</span></footer></main>
-<script src="/socket.io/socket.io.js"></script><script>
-const root=document.getElementById("overlayQuestions");const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function render(qs){if(!qs.length){root.innerHTML='<div class="overlay-empty"><div class="pulse">●</div><h2>YOUR QUESTION COULD BE NEXT</h2><p>Submit at <strong>ask.zg.live</strong></p></div>';return;}root.innerHTML=qs.map((q,i)=>`<article class="overlay-card ${i===0?'featured':''}"><div class="overlay-card-top"><span class="tag">${q.type==='trade'?'TRADE ANALYZER':'START / SIT'}</span><span class="overlay-number">QUESTION #${q.id}</span></div><h2>${esc(q.displayName||'TikTok viewer')}</h2>${q.players?`<div class="overlay-players">${esc(q.players)}</div>`:''}<p>${esc(q.question)}</p>${q.answer?`<div class="overlay-answer"><span>ZG'S TAKE</span><p>${esc(q.answer)}</p></div>`:''}</article>`).join("");}
-const socket=io();socket.on("overlay:update",render);
-</script></body></html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZG Live Fantasy Football Overlay</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      background: transparent;
+      color: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    body { padding: 24px; }
+    #question-card {
+      display: none;
+      width: 100%;
+      max-width: 900px;
+      padding: 26px 30px;
+      border: 2px solid #35e58b;
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(10,18,32,.97), rgba(18,39,56,.96));
+      box-shadow: 0 8px 32px rgba(0,0,0,.35);
+    }
+    .brand {
+      color: #35e58b;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .type {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      background: #35e58b;
+      color: #07140d;
+      font-size: 15px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .username {
+      margin-top: 16px;
+      font-size: 25px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+    .league {
+      margin-top: 5px;
+      color: #c7d4e3;
+      font-size: 17px;
+      overflow-wrap: anywhere;
+    }
+    .details {
+      margin-top: 18px;
+      font-size: 30px;
+      line-height: 1.3;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+    .answer {
+      display: none;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,.25);
+      color: #35e58b;
+      font-size: 25px;
+      font-weight: 800;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    #waiting {
+      display: none;
+      width: fit-content;
+      padding: 14px 20px;
+      border: 2px solid #35e58b;
+      border-radius: 14px;
+      background: rgba(10,18,32,.94);
+      color: #35e58b;
+      font-size: 21px;
+      font-weight: 900;
+    }
+  </style>
+</head>
+<body>
+  <div id="waiting">ZG LIVE · SEND YOUR FANTASY QUESTION</div>
+
+  <section id="question-card">
+    <div class="brand">ZG Live Fantasy Football</div>
+    <div class="type" id="type"></div>
+    <div class="username" id="username"></div>
+    <div class="league" id="league"></div>
+    <div class="details" id="details"></div>
+    <div class="answer" id="answer"></div>
+  </section>
+
+  <script>
+    const card = document.getElementById('question-card');
+    const waiting = document.getElementById('waiting');
+    const overlayKey = new URLSearchParams(window.location.search).get('key');
+
+    let lastQuestionId = null;
+    let lastStatus = null;
+
+    function showWaiting() {
+      card.style.display = 'none';
+      waiting.style.display = 'block';
+    }
+
+    async function refreshOverlay() {
+      try {
+        const endpoint = '/api/overlay/current' +
+          (overlayKey ? '?key=' + encodeURIComponent(overlayKey) : '');
+
+        const response = await fetch(endpoint, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Overlay request failed');
+
+        const question = await response.json();
+
+        if (!question || question.status !== 'accepted') {
+          showWaiting();
+          lastQuestionId = question ? question.id : null;
+          lastStatus = question ? question.status : null;
+          return;
+        }
+
+        document.getElementById('type').textContent =
+          question.type === 'trade' ? 'Trade Question' : 'Start / Sit';
+
+        document.getElementById('username').textContent =
+          '@' + (question.username || 'TikTok viewer');
+
+        const league = document.getElementById('league');
+        league.textContent = question.league ? 'League: ' + question.league : '';
+        league.style.display = question.league ? 'block' : 'none';
+
+        document.getElementById('details').textContent = question.details || '';
+
+        const answer = document.getElementById('answer');
+        if (question.answer) {
+          answer.textContent = 'ANSWER: ' + question.answer;
+          answer.style.display = 'block';
+        } else {
+          answer.textContent = '';
+          answer.style.display = 'none';
+        }
+
+        card.style.display = 'block';
+        waiting.style.display = 'none';
+
+        lastQuestionId = question.id;
+        lastStatus = question.status;
+      } catch (error) {
+        // Keep the overlay transparent and retry automatically.
+        console.error('Overlay refresh failed:', error);
+      }
+    }
+
+    refreshOverlay();
+    setInterval(refreshOverlay, 2000);
+  </script>
+</body>
+</html>
