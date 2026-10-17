@@ -1,20 +1,278 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZG Live — Control Room</title><link rel="stylesheet" href="/style.css"></head>
-<body class="admin-body"><header class="admin-top"><div class="brand"><span class="brand-ball">ZG</span><span>CONTROL ROOM</span></div><span class="live-pill">QUEUE MANAGER</span></header>
-<main class="admin-main"><section id="loginPanel" class="panel login-panel"><p class="eyebrow">CREATOR ACCESS</p><h1>Welcome back.</h1><p class="muted">Log in to review questions before they appear on stream.</p><form id="loginForm"><div class="field"><label for="password">ADMIN PASSWORD</label><input id="password" type="password" required autocomplete="current-password" placeholder="Enter your password"></div><button class="primary full">Log in →</button><p id="loginMessage" class="message error"></p></form><p class="small muted">Set a strong ADMIN_PASSWORD environment variable before deploying.</p></section>
-<section id="dashboard" hidden><div class="dash-head"><div><p class="eyebrow">LIVE SESSION</p><h1>Question queue</h1><p class="muted">Accept a question to show it on the overlay. Reject to keep it off stream.</p></div><button id="logout" class="secondary">Log out</button></div>
-<div class="stats"><div class="stat"><span>WAITING</span><strong id="pendingCount">0</strong></div><div class="stat"><span>ON OVERLAY</span><strong id="acceptedCount">0</strong></div><div class="stat"><span>REJECTED</span><strong id="rejectedCount">0</strong></div></div>
-<div class="filters"><button class="filter active" data-filter="pending">Waiting</button><button class="filter" data-filter="accepted">Accepted</button><button class="filter" data-filter="rejected">Rejected</button><button class="filter" data-filter="answered">Answered</button><button class="filter" data-filter="all">All</button></div><div id="queue" class="queue"></div></section></main>
-<script src="/socket.io/socket.io.js"></script><script>
-let token="",items=[],filter="pending";const $=id=>document.getElementById(id);
-$("loginForm").addEventListener("submit",async e=>{e.preventDefault();$("loginMessage").textContent="";try{const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:$("password").value})});const d=await r.json();if(!r.ok)throw Error(d.error);token=d.token;$("loginPanel").hidden=true;$("dashboard").hidden=false;render();}catch(err){$("loginMessage").textContent=err.message;}});
-$("logout").onclick=()=>{token="";$("dashboard").hidden=true;$("loginPanel").hidden=false;$("password").value="";};
-document.querySelectorAll(".filter").forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll(".filter").forEach(x=>x.classList.toggle("active",x===b));render();});
-async function action(id,status,answer){const r=await fetch("/api/admin/questions/"+id,{method:"PATCH",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({status,answer})});const d=await r.json();if(!r.ok){alert(d.error||"Action failed");if(r.status===401)$("logout").click();}}
-async function remove(id){if(!confirm("Permanently delete this question?"))return;const r=await fetch("/api/admin/questions/"+id,{method:"DELETE",headers:{"Authorization":"Bearer "+token}});if(r.status===401)$("logout").click();}
-function render(){if(!$("dashboard")||$("dashboard").hidden)return;const pending=items.filter(q=>q.status==="pending").length,accepted=items.filter(q=>q.status==="accepted").length,rejected=items.filter(q=>q.status==="rejected").length;$("pendingCount").textContent=pending;$("acceptedCount").textContent=accepted;$("rejectedCount").textContent=rejected;const shown=items.filter(q=>filter==="all"||q.status===filter);$("queue").innerHTML=shown.length?"":"<div class='empty'>No questions in this view yet.</div>";shown.forEach(q=>{const card=document.createElement("article");card.className="question-card";const badge=q.status;card.innerHTML=`<div class="q-head"><div><span class="tag ${q.type==='trade'?'trade':''}">${q.type==='trade'?'TRADE QUESTION':'START / SIT'}</span> <span class="status ${badge}">${badge.toUpperCase()}</span><h3></h3><p class="small muted"></p></div><span class="q-id">#${q.id}</span></div><p class="q-players"></p><p class="q-text"></p><div class="actions"></div><div class="answer-wrap" hidden><label>ON-STREAM ANSWER (OPTIONAL)</label><textarea rows="2" maxlength="400" placeholder="Short answer to show on overlay"></textarea><button class="primary answer-btn">Accept + show answer</button></div>`;card.querySelector("h3").textContent=q.displayName||"TikTok viewer";card.querySelector(".q-head .muted").textContent=new Date(q.createdAt).toLocaleString();card.querySelector(".q-players").textContent=q.players?"Players: "+q.players:"";card.querySelector(".q-text").textContent=q.question;const a=card.querySelector(".actions");
-if(q.status==="pending"){const accept=document.createElement("button");accept.className="primary";accept.textContent="✓ Accept & show";accept.onclick=()=>action(q.id,"accepted");a.append(accept);const reject=document.createElement("button");reject.className="danger";reject.textContent="✕ Reject";reject.onclick=()=>action(q.id,"rejected");a.append(reject);}
-if(q.status==="accepted"){const ans=card.querySelector(".answer-wrap");ans.hidden=false;ans.querySelector("textarea").value=q.answer||"";ans.querySelector(".answer-btn").onclick=()=>action(q.id,"accepted",ans.querySelector("textarea").value);const done=document.createElement("button");done.className="secondary";done.textContent="Mark answered";done.onclick=()=>action(q.id,"answered",q.answer);a.append(done);const hide=document.createElement("button");hide.className="secondary";hide.textContent="Remove from overlay";hide.onclick=()=>action(q.id,"answered",q.answer);a.append(hide);}
-if(q.status==="rejected"||q.status==="answered"){const reopen=document.createElement("button");reopen.className="secondary";reopen.textContent="Return to waiting";reopen.onclick=()=>action(q.id,"pending");a.append(reopen);}
-const del=document.createElement("button");del.className="text-btn";del.textContent="Delete";del.onclick=()=>remove(q.id);a.append(del);$("queue").append(card);});}
-const socket=io();socket.on("queue:update",data=>{items=data;render();});
-</script></body></html>
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZG Live — Control Room</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="admin-body">
+<header class="admin-top">
+  <div class="brand"><span class="brand-ball">ZG</span><span>CONTROL ROOM</span></div>
+  <span class="live-pill">QUEUE MANAGER</span>
+</header>
+
+<main class="admin-main">
+<section id="loginPanel" class="panel login-panel">
+  <p class="eyebrow">CREATOR ACCESS</p>
+  <h1>Welcome back.</h1>
+  <p class="muted">Log in to review questions before they appear on stream.</p>
+  <form id="loginForm">
+    <div class="field">
+      <label for="password">ADMIN PASSWORD</label>
+      <input id="password" type="password" required autocomplete="current-password" placeholder="Enter your password">
+    </div>
+    <button class="primary full" type="submit">Log in →</button>
+    <p id="loginMessage" class="message error"></p>
+  </form>
+</section>
+
+<section id="dashboard" hidden>
+  <div class="dash-head">
+    <div>
+      <p class="eyebrow">LIVE SESSION</p>
+      <h1>Question queue</h1>
+      <p class="muted">Accept questions to display them on your stream.</p>
+    </div>
+    <button id="logout" class="secondary" type="button">Log out</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span>WAITING</span><strong id="pendingCount">0</strong></div>
+    <div class="stat"><span>ON OVERLAY</span><strong id="acceptedCount">0</strong></div>
+    <div class="stat"><span>REJECTED</span><strong id="rejectedCount">0</strong></div>
+  </div>
+
+  <div class="filters">
+    <button class="filter active" data-filter="pending">Waiting</button>
+    <button class="filter" data-filter="accepted">Accepted</button>
+    <button class="filter" data-filter="rejected">Rejected</button>
+    <button class="filter" data-filter="answered">Answered</button>
+    <button class="filter" data-filter="all">All</button>
+  </div>
+
+  <p id="queueMessage" class="muted small"></p>
+  <div id="queue" class="queue"></div>
+</section>
+</main>
+
+<script>
+let token = "";
+let items = [];
+let filter = "pending";
+let poller = null;
+
+const $ = id => document.getElementById(id);
+
+async function api(url, options = {}) {
+  const headers = { ...(options.headers || {}) };
+
+  if (token) headers["x-admin-token"] = token;
+  if (options.body) headers["Content-Type"] = "application/json";
+
+  const response = await fetch(url, { ...options, headers });
+  const data = await response.json().catch(() => ({
+    error: "Unexpected server response."
+  }));
+
+  if (!response.ok) {
+    throw Object.assign(
+      new Error(data.error || "Request failed."),
+      { status: response.status }
+    );
+  }
+
+  return data;
+}
+
+$("loginForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  $("loginMessage").textContent = "";
+
+  try {
+    const data = await api("/api/login", {
+      method: "POST",
+      body: JSON.stringify({ password: $("password").value })
+    });
+
+    token = data.token;
+    $("loginPanel").hidden = true;
+    $("dashboard").hidden = false;
+
+    await refresh();
+
+    if (poller) clearInterval(poller);
+    poller = setInterval(refresh, 2500);
+  } catch (error) {
+    $("loginMessage").textContent = error.message;
+  }
+});
+
+$("logout").onclick = () => {
+  token = "";
+  if (poller) clearInterval(poller);
+  poller = null;
+  $("dashboard").hidden = true;
+  $("loginPanel").hidden = false;
+  $("password").value = "";
+};
+
+document.querySelectorAll(".filter").forEach(button => {
+  button.onclick = () => {
+    filter = button.dataset.filter;
+    document.querySelectorAll(".filter").forEach(item => {
+      item.classList.toggle("active", item === button);
+    });
+    render();
+  };
+});
+
+async function refresh() {
+  if (!token) return;
+
+  try {
+    items = await api("/api/admin/questions");
+    $("queueMessage").textContent =
+      "Last updated " + new Date().toLocaleTimeString();
+    render();
+  } catch (error) {
+    $("queueMessage").textContent = error.message;
+    if (error.status === 401) $("logout").click();
+  }
+}
+
+async function action(id, status, answer = "") {
+  try {
+    await api("/api/admin/questions/" + id, {
+      method: "PATCH",
+      body: JSON.stringify({ status, answer })
+    });
+    await refresh();
+  } catch (error) {
+    alert(error.message);
+    if (error.status === 401) $("logout").click();
+  }
+}
+
+function makeButton(label, className, callback) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.textContent = label;
+  button.onclick = callback;
+  return button;
+}
+
+function render() {
+  if ($("dashboard").hidden) return;
+
+  const count = status => items.filter(q => q.status === status).length;
+  $("pendingCount").textContent = count("pending");
+  $("acceptedCount").textContent = count("accepted");
+  $("rejectedCount").textContent = count("rejected");
+
+  const shown = items.filter(q => filter === "all" || q.status === filter);
+  const queue = $("queue");
+  queue.innerHTML = "";
+
+  if (!shown.length) {
+    queue.innerHTML = "<div class='empty'>No questions in this view yet.</div>";
+    return;
+  }
+
+  shown.forEach(q => {
+    const card = document.createElement("article");
+    card.className = "question-card";
+
+    const head = document.createElement("div");
+    head.className = "q-head";
+
+    const info = document.createElement("div");
+    const tag = document.createElement("span");
+    tag.className = "tag " + (q.type === "trade" ? "trade" : "");
+    tag.textContent = q.type === "trade" ? "TRADE QUESTION" : "START / SIT";
+
+    const status = document.createElement("span");
+    status.className = "status " + q.status;
+    status.textContent = q.status.toUpperCase();
+
+    const username = document.createElement("h3");
+    username.textContent = q.username || "TikTok viewer";
+
+    const meta = document.createElement("p");
+    meta.className = "small muted";
+    meta.textContent =
+      (q.league ? "League: " + q.league + " · " : "") +
+      (q.created_at ? new Date(q.created_at.replace(" ", "T") + "Z").toLocaleString() : "");
+
+    info.append(tag, document.createTextNode(" "), status, username, meta);
+
+    const number = document.createElement("span");
+    number.className = "q-id";
+    number.textContent = "#" + q.id;
+
+    head.append(info, number);
+    card.append(head);
+
+    const question = document.createElement("p");
+    question.className = "q-text";
+    question.textContent = q.details || "";
+    card.append(question);
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
+
+    if (q.status === "pending") {
+      actions.append(
+        makeButton("✓ Accept & show", "primary",
+          () => action(q.id, "accepted", q.answer || "")),
+        makeButton("✕ Reject", "danger",
+          () => action(q.id, "rejected", ""))
+      );
+    }
+
+    if (q.status === "accepted") {
+      const wrap = document.createElement("div");
+      wrap.className = "answer-wrap";
+
+      const label = document.createElement("label");
+      label.textContent = "ON-STREAM ANSWER (OPTIONAL)";
+
+      const textarea = document.createElement("textarea");
+      textarea.rows = 2;
+      textarea.maxLength = 400;
+      textarea.placeholder = "Short answer to show on overlay";
+      textarea.value = q.answer || "";
+
+      wrap.append(
+        label,
+        textarea,
+        makeButton("Save answer", "primary",
+          () => action(q.id, "accepted", textarea.value))
+      );
+      card.append(wrap);
+
+      actions.append(
+        makeButton("Mark answered / hide", "secondary",
+          () => action(q.id, "answered", textarea.value)),
+        makeButton("Reject", "danger",
+          () => action(q.id, "rejected", ""))
+      );
+    }
+
+    if (q.status === "rejected" || q.status === "answered") {
+      actions.append(
+        makeButton("Return to waiting", "secondary",
+          () => action(q.id, "pending", q.answer || ""))
+      );
+    }
+
+    card.append(actions);
+    queue.append(card);
+  });
+}
+</script>
+</body>
+</html>
+
