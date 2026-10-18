@@ -20,26 +20,14 @@ db.exec(`CREATE TABLE IF NOT EXISTS questions (
  created_at TEXT NOT NULL DEFAULT (datetime('now')), answer TEXT DEFAULT ''
 )`);
 
-
+// Add decision_at column if it doesn't exist yet.
 try {
   db.exec('ALTER TABLE questions ADD COLUMN decision_at TEXT');
 } catch (error) {
-  if (!String(error.message).includes('duplicate column name')) {
+  // SQLite will throw an error if the column already exists — ignore that specific error.
+  if (!String(error.message).toLowerCase().includes('duplicate') && !String(error.message).toLowerCase().includes('already')) {
     throw error;
   }
-}
-
-
-try {
-  db.exec("ALTER TABLE questions ADD COLUMN decision_at TEXT");
-} catch (error) {
-  // Column already exists on an existing database.
-}
-
-try {
-  db.exec("ALTER TABLE questions ADD COLUMN decision_at TEXT");
-} catch (error) {
-  // The column already exists.
 }
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
@@ -123,7 +111,7 @@ app.get('/api/overlay/current', overlayAuth, (req, res) => {
     LIMIT 1
   `).get();
 
-  // Show the newest question while it is pending or accepted.
+  // Show the newest question while it is pending, accepted or answered.
   const activeQuestion = db.prepare(`
     SELECT id, type, username, league, details, status, answer, created_at
     FROM questions
@@ -138,52 +126,5 @@ app.get('/api/overlay/current', overlayAuth, (req, res) => {
   });
 });
 
-
-
-
-
-
-  const answer = String(req.body.answer || '').trim().slice(0, 400);
-  const decisionAt = ['accepted', 'rejected'].includes(status)
-    ? new Date().toISOString()
-    : null;
-
-  const result = db.prepare(`
-    UPDATE questions
-    SET status = ?, answer = ?, decision_at = ?
-    WHERE id = ?
-  `).run(status, answer, decisionAt, id);
-
-  if (!result.changes) {
-    return res.status(404).json({ error: 'Question not found.' });
-  }
-
-  res.json({ ok: true });
-});
- if(!r.changes) return res.status(404).json({error:'Question not found.'}); res.json({ok:true});
-});
-app.get('/api/overlay/current', overlayAuth, (req, res) => {
-  const latestDecision = db.prepare(`
-    SELECT id, status, decision_at
-    FROM questions
-    WHERE status IN ('accepted', 'rejected')
-      AND decision_at IS NOT NULL
-    ORDER BY decision_at DESC
-    LIMIT 1
-  `).get();
-
-  const activeQuestion = db.prepare(`
-    SELECT id, type, username, league, details, status, answer, created_at
-    FROM questions
-    WHERE status IN ('accepted', 'answered')
-    ORDER BY id DESC
-    LIMIT 1
-  `).get();
-
-  res.json({
-    decision: latestDecision || null,
-    question: activeQuestion || null
-  });
-});
 app.get('/health',(_,res)=>res.json({ok:true}));
 const port=process.env.PORT||3000; app.listen(port,'0.0.0.0',()=>console.log(`ZG Live listening on ${port}`));
