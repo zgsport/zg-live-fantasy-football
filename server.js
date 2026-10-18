@@ -20,15 +20,6 @@ db.exec(`CREATE TABLE IF NOT EXISTS questions (
  created_at TEXT NOT NULL DEFAULT (datetime('now')), answer TEXT DEFAULT ''
 )`);
 
-// Add decision_at column if it doesn't exist yet.
-try {
-  db.exec('ALTER TABLE questions ADD COLUMN decision_at TEXT');
-} catch (error) {
-  // SQLite will throw an error if the column already exists — ignore that specific error.
-  if (!String(error.message).toLowerCase().includes('duplicate') && !String(error.message).toLowerCase().includes('already')) {
-    throw error;
-  }
-}
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const OVERLAY_KEY = process.env.OVERLAY_KEY || '';
